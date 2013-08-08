@@ -12,8 +12,8 @@
 //    http://learn.adafruit.com/digital-led-belt/upload-the-test-sketch
 //
 // NOTE:  The LED strip in the belt kit uses LPD8806 chips to control the LEDs.
-// For other strips with other chips there are other libraries, for example 
-// this WP2811 based strip instead which uses "Adafruit_NeoPixel.h" instead of "LPD8806.h". 
+// For other strips with other chips there are other libraries. For example 
+// this WP2811 based strip uses "Adafruit_NeoPixel.h" instead of "LPD8806.h". 
 //    http://www.adafruit.com/products/1376
 //
 
@@ -56,6 +56,7 @@ LPD8806 strip = LPD8806(NUM_PIXELS, dataPin, clockPin);
 void setup() {
   
 //  Serial.begin(9600);
+  randomSeed(analogRead(0));
   
   // Start up the LED strip
   strip.begin();
@@ -68,7 +69,7 @@ void setup() {
 // function prototypes, keep here!
 ///
 void clearStrip();
-void strobeFadeOut(uint8_t red, uint8_t green, uint8_t blue, float brightnessScale, uint8_t strobesPerSec);
+void strobeFadeOut(uint8_t red, uint8_t green, uint8_t blue, float brightnessScale, float strobesPerSecond, uint16_t darkMillis);
 
 ///
 // Adafruit gave us these ones for starters:
@@ -83,7 +84,15 @@ uint32_t Wheel(uint16_t WheelPos);
 
 void loop() {
 
-  strobeFadeOut(MAX_COLOR, MAX_COLOR, 0, 0.01, 1);
+  // 20 hz is probably the craziest you'd want.
+//  strobeFadeOut(MAX_COLOR, MAX_COLOR, 0, 1.0, 20, 0);
+
+  strobeFadeOut(random(MAX_COLOR/3)+MAX_COLOR/3, // red
+                random(MAX_COLOR/3), // green
+                random(MAX_COLOR/3), // blue
+                (random(30) + 60) / 100.0, // brightness scale 0.0 is dark, 1.0 is bright
+                0.66,   // strobes per second
+                100);  // millis between strobes
   
 }
 
@@ -91,48 +100,70 @@ void strobeFadeOut(uint8_t red,
                    uint8_t green,
                    uint8_t blue,
                    float brightnessScale,
-                   uint8_t strobesPerSec) {
+                   float strobesPerSecond,
+                   uint16_t darkMillis) {
   // Fade out
   
-  double colorScale = 1.0;
-  double minColorScale = 0.0005;
-  double decay = 0.1;
-  int i;
-  uint16_t fadeWaitTime = 5; //strobesPerSec * 1000 / 8;  // cheating on the math here...how do you count how many times you can divide a number by 2 before it goes less than zero?
-//  uint16_t totalFadeTime = 0;
+/*
+//
+// Exponential decay:
+//  	x = initial * exp(k*t)
+//
+// where initial is the scale value 1.0
+// where x is the exponentially decreased scale value at time t
+// where t is milliseconds from 0 - 1000
+// where k is the decay factor
 
-  while (colorScale > minColorScale) {
-    colorScale = colorScale - (colorScale * decay);// float(currentBrightness / originalBrightness * 0.01);
+---------------------------------------
+double k = ln(minScale) / msPerStrobe;
+k = -0.006907  for msPerStrobe:1000
+---------------------------------------
+*/
+
+  unsigned long t1, t2;
+  float minScale = 0.0001;
+  float msPerStrobe = 1000.0 / strobesPerSecond;
+  double decay = log(minScale) / msPerStrobe;
+//  float t = log(minScale) / decay;
+  
+  double colorScale = 1.0;
+  int i;
+  float diff;
+
+  t1 = millis();  
+  while (colorScale > (minScale*1.0)) {
+
+    t2 = millis();
+    diff = t2 - t1;
+    colorScale = 1.0 * exp(decay * diff);
     
     double s = colorScale * brightnessScale;
     int redScaled = (red * s);
     int greenScaled = (green * s);
     int blueScaled = (blue * s);
-  Serial.print("s: ");
-  Serial.println(colorScale);
-//  Serial.print("red: ");
-//  Serial.println(redScaled);
-
+//    Serial.print("s: ");
+//    Serial.println(colorScale);
+//    Serial.print("diff: ");
+//    Serial.println(diff);
+//    Serial.print("decay: ");
+//    Serial.println(decay);
 
     for (i=0; i < strip.numPixels(); i++) {
       strip.setPixelColor(i, strip.Color(redScaled, greenScaled, blueScaled));
     }
-    
+
     strip.show();
-    delay(fadeWaitTime);    
-    
-    fadeWaitTime = fadeWaitTime - (fadeWaitTime * decay * 10);
+    delay(1);
   }
 
-  Serial.println("clearing");
-    for (i=0; i < strip.numPixels(); i++) {
-      strip.setPixelColor(i, strip.Color(0, 0, 0));
-    }
+  for (i=0; i < strip.numPixels(); i++) {
+//    strip.setPixelColor(i, strip.Color(MAX_COLOR, MAX_COLOR, MAX_COLOR));
+    strip.setPixelColor(i, strip.Color(0, 0, 0));
+//    delay(darkMillis / strip.numPixels());
+  }
     
     strip.show();
-
-//  clearStrip();
-  delay(2000);
+  delay(darkMillis);
 }
 
 void loopEverything() {
