@@ -1,8 +1,33 @@
+//
+// This program is for the Adafruit LED Belt kit.
+//    http://www.adafruit.com/products/332
+//
+// Here is the LED strip.  
+//    http://www.adafruit.com/products/306
+//
+// The microcontroller is the Adafruit ATMega32u4 breakout board.
+//    http://www.adafruit.com/products/296
+//
+// Install Teensyduino to upload programs onto your board.
+//    http://learn.adafruit.com/digital-led-belt/upload-the-test-sketch
+//
+// NOTE:  The LED strip in the belt kit uses LPD8806 chips to control the LEDs.
+// For other strips with other chips there are other libraries, for example 
+// this WP2811 based strip instead which uses "Adafruit_NeoPixel.h" instead of "LPD8806.h". 
+//    http://www.adafruit.com/products/1376
+//
+
+
 #include "LPD8806.h"
 #include "SPI.h"
 
+
+
 // Example to control LPD8806-based RGB LED Modules in a strip!
 /*****************************************************************************/
+#define MAX_COLOR 127
+#define NUM_PIXELS 32
+
 
 #if defined(USB_SERIAL) || defined(USB_SERIAL_ADAFRUIT)
 // this is for teensyduino support
@@ -24,7 +49,7 @@ int clockPin = 15;
 
 // Set the first variable to the NUMBER of pixels. 32 = 32 pixels in a row
 // The LED strips are 32 LEDs per meter but you can extend/cut the strip
-LPD8806 strip = LPD8806(32, dataPin, clockPin);
+LPD8806 strip = LPD8806(NUM_PIXELS, dataPin, clockPin);
 
 
 
@@ -56,7 +81,6 @@ void wave(uint32_t c, int cycles, uint8_t wait);
 void rainbowCycle(uint8_t wait);
 uint32_t Wheel(uint16_t WheelPos);
 
-#define MAX_COLOR 127
 void loop() {
 
   strobeFadeOut(MAX_COLOR, MAX_COLOR, 0, 0.01, 1);
