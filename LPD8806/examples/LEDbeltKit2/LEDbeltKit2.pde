@@ -19,6 +19,7 @@
 
 
 #include "LPD8806.h"
+#include "ParticleEmitter.h"
 #include "SPI.h"
 
 
@@ -50,12 +51,13 @@ int clockPin = 15;
 // Set the first variable to the NUMBER of pixels. 32 = 32 pixels in a row
 // The LED strips are 32 LEDs per meter but you can extend/cut the strip
 LPD8806 strip = LPD8806(NUM_PIXELS, dataPin, clockPin);
+ParticleEmitter emitter = ParticleEmitter(NUM_PIXELS);
 
 
 
 void setup() {
   
-//  Serial.begin(9600);
+  Serial.begin(9600);
   randomSeed(analogRead(0));
   
   // Start up the LED strip
@@ -82,10 +84,67 @@ void wave(uint32_t c, int cycles, uint8_t wait);
 void rainbowCycle(uint8_t wait);
 uint32_t Wheel(uint16_t WheelPos);
 
-void loop() {
 
+void loop() {
+  
+  particles();
+  
+//  strobe();
+  
+}
+
+void particles() {
+  emitter.stripPosition = random(100) / 100.0;
+
+  Serial.print("emitter position:");
+  Serial.println(emitter.stripPosition);
+//  clearStrip();
+  
+  
+  for (int j=0; j < emitter.numParticles * 4; j++) {
+    
+    for (int i=0; i < emitter.numParticles; i++) {
+      particle prt = emitter.updateParticle(i);
+      uint16_t pixel = NUM_PIXELS * prt.currentStripPosition;
+  
+      // High velocity particles have longer tails
+      uint8_t tailLength = abs(prt.velocity * 5);
+      uint8_t slot = pixel;
+      
+      for (int z=0; z < tailLength; z++) { 
+        float colorScale = ( (tailLength-z*0.999) / tailLength );
+        strip.setPixelColor(slot, strip.Color(prt.redColor*colorScale, 
+                                              prt.blueColor*colorScale, 
+                                              prt.greenColor*colorScale));
+
+        slot = pixel + ((z+1) * (prt.velocity > 0 ? -1 : 1));
+
+//        if (slot < 0) {
+//          strip.setPixelColor(slot, strip.Color(0,0,0));
+//          slot = 0;
+//        }
+//        else if (slot > (emitter.numPixels-1)) {
+//          slot = emitter.numPixels-1;
+//        }
+      }
+      strip.setPixelColor(slot, strip.Color(0,0,0));
+      
+//      Serial.print("pos: ");
+//      Serial.print(prt.currentStripPosition);
+//      Serial.print("  v: ");
+//      Serial.println(prt.velocity);
+//      Serial.print(": ");
+//      Serial.println(pixel);
+      
+    }
+    strip.show();
+    delay(1);
+  }
+}
+
+void strobe() {
   // 20 hz is probably the craziest you'd want.
-//  strobeFadeOut(MAX_COLOR, MAX_COLOR, 0, 1.0, 20, 0);
+  //strobeFadeOut(MAX_COLOR, MAX_COLOR, 0, 1.0, 20, 0);
 
   strobeFadeOut(random(MAX_COLOR/3)+MAX_COLOR/3, // red
                 random(MAX_COLOR/3), // green
